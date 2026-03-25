@@ -2,13 +2,19 @@
 
 import json
 import logging
-import re
 import time
 from datetime import datetime
 from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
+
+from scraper.utils import (
+    expandir_colunas_com_colspan,
+    extrair_unidade,
+    limpar_valor_monetario,
+    tabela_parece_preco,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -98,10 +104,10 @@ def extrair_tabela_precos(sopa, produto):
         headers_th = [th.get_text(strip=True) for th in tabela.find_all("th")]
         texto_headers = " ".join(headers_th).lower()
 
-        if not _tabela_parece_preco(texto_caption, texto_headers, produto):
+        if not tabela_parece_preco(texto_caption, texto_headers, produto):
             continue
 
-        colunas = _expandir_colunas_com_colspan(tabela)
+        colunas = expandir_colunas_com_colspan(tabela)
         linhas_dados = tabela.find_all("tr")
 
         for tr in linhas_dados:
@@ -116,27 +122,6 @@ def extrair_tabela_precos(sopa, produto):
     return registros
 
 
-def _tabela_parece_preco(texto_caption, texto_headers, produto):
-    termos_preco = ["preço", "preco", "cotação", "cotacao", "r$"]
-    tem_preco = any(t in texto_caption or t in texto_headers for t in termos_preco)
-    tem_produto = produto in texto_caption or produto in texto_headers
-    return tem_preco or tem_produto
-
-
-def _expandir_colunas_com_colspan(tabela):
-    # Cabeçalhos com colspan precisam ser expandidos para alinhar com as células
-    # de dados. Ex: <th colspan="3">Preço</th> vira ["Preço", "Preço", "Preço"].
-    colunas = []
-    primeira_tr = tabela.find("tr")
-    if not primeira_tr:
-        return colunas
-    for celula in primeira_tr.find_all(["th", "td"]):
-        texto = celula.get_text(strip=True)
-        span = int(celula.get("colspan", 1))
-        colunas.extend([texto] * span)
-    return colunas
-
-
 def _parsear_linha_preco(tds, colunas, produto):
     try:
         textos = [td.get_text(strip=True) for td in tds]
@@ -148,7 +133,7 @@ def _parsear_linha_preco(tds, colunas, produto):
         if not preco_texto or not regiao:
             return None
 
-        preco = _limpar_valor_monetario(preco_texto)
+        preco = limpar_valor_monetario(preco_texto)
         if preco is None:
             return None
 
@@ -157,37 +142,11 @@ def _parsear_linha_preco(tds, colunas, produto):
             "regiao": regiao,
             "data_referencia": data_texto,
             "preco": preco,
-            "unidade": _extrair_unidade(preco_texto),
+            "unidade": extrair_unidade(preco_texto),
             "data_coleta": datetime.now().isoformat(),
         }
     except (IndexError, ValueError):
         return None
-
-
-def _limpar_valor_monetario(texto):
-    texto = texto.replace("R$", "").replace("/sc", "").replace("/kg", "").strip()
-    texto = re.sub(r"[^\d.,]", "", texto)
-    if not texto:
-        return None
-    # Converte vírgula decimal brasileira para ponto
-    if "," in texto and "." in texto:
-        texto = texto.replace(".", "").replace(",", ".")
-    elif "," in texto:
-        texto = texto.replace(",", ".")
-    try:
-        return round(float(texto), 2)
-    except ValueError:
-        return None
-
-
-def _extrair_unidade(texto):
-    if "/sc" in texto.lower():
-        return "saca"
-    if "/kg" in texto.lower():
-        return "kg"
-    if "/t" in texto.lower():
-        return "tonelada"
-    return "saca"
 
 
 def salvar_raw(registros, produto):
@@ -198,6 +157,56 @@ def salvar_raw(registros, produto):
         json.dump(registros, f, ensure_ascii=False, indent=2)
     log.info("Salvo %s (%d registros)", caminho, len(registros))
     return caminho
+
+
+DELAY_ENTRE_REQUISICOES = 2  # segundos entre páginas (rate limiting)
+
+
+def coletar_produto(sessao, url_boletim, produto):
+    """Acessa uma página de boletim, extrai tabelas de preços e salva em raw."""
+    resp = requisitar_com_retry(sessao, url_boletim)
+    if not resp:
+        log.warning("Sem resposta para %s — pulando", url_boletim)
+        return []
+
+    if "iso-8859-1" in resp.headers.get("Content-Type", "").lower():
+        resp.encoding = "iso-8859-1"
+    else:
+        resp.encoding = resp.apparent_encoding
+
+    sopa = BeautifulSoup(resp.text, "lxml")
+    return extrair_tabela_precos(sopa, produto)
+
+
+def executar():
+    sessao = criar_sessao()
+    log.info("Iniciando coleta — URL base: %s", URL_BASE)
+
+    links = descobrir_links_boletins(sessao, URL_BASE)
+    if not links:
+        log.warning("Nenhum boletim encontrado na página principal")
+        return
+
+    for i, link in enumerate(links):
+        produto = link["produto"]
+        url = link["url"]
+        log.info("[%d/%d] Coletando '%s' — %s", i + 1, len(links), produto, url)
+
+        registros = coletar_produto(sessao, url, produto)
+        if registros:
+            salvar_raw(registros, produto)
+        else:
+            log.warning("Nenhum registro extraído de '%s'", url)
+
+        # Rate limiting entre requisições
+        if i < len(links) - 1:
+            time.sleep(DELAY_ENTRE_REQUISICOES)
+
+    log.info("Coleta finalizada — %d boletins processados", len(links))
+
+
+if __name__ == "__main__":
+    executar()
 
 
 def coletar_produto(sessao, produto, url):

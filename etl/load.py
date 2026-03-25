@@ -22,7 +22,7 @@ def conectar():
         host=os.getenv("PG_HOST", "localhost"),
         port=os.getenv("PG_PORT", "5432"),
         dbname=os.getenv("PG_DATABASE", "agromercantil"),
-        user=os.getenv("PG_USER", "postgres"),
+        user=os.getenv("PG_USER", "admin"),
         password=os.getenv("PG_PASSWORD", ""),
     )
 

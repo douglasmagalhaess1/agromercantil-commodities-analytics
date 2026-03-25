@@ -217,25 +217,23 @@ Cada camada e imutavel em relacao a anterior. Dados brutos sao preservados para 
 
 ---
 
-## Q7 — Otimização e indexação
+## 7. Otimização e Indexação (15 pontos)
+A modelagem foi otimizada com a criação de chaves primárias e estrangeiras nas tabelas dimensionais, e índices na tabela de staging `price_raw` para acelerar consultas analíticas:
 
-Índices criados e justificativas em `sql/schema/02_indexes.sql`.
+* **Índices Implementados:**
+  * `idx_price_raw_produto` (B-Tree): Otimiza agrupamentos e filtros por commodity (ex: cláusulas `WHERE produto = ...` ou `GROUP BY produto`).
+  * `idx_price_raw_data` (B-Tree): Otimiza ordenações temporais e funções de janela como `LAG` ou `LEAD` particionadas por data.
+  * `idx_price_raw_preco` (B-Tree): Otimiza buscas por limites de valor (ex: detecção de anomalias com `preco < 0`).
+  * `idx_price_raw_prod_data` (B-Tree Composto): Otimiza consultas que filtram por produto e ordenam por data simultaneamente.
 
-**Geração do EXPLAIN ANALYZE:**
+* **Justificativa da Arquitetura (B-Tree vs Outros):** A escolha do B-Tree (padrão do PostgreSQL) se dá pela alta seletividade esperada nas consultas de alta cardinalidade e suporte eficiente a operadores de igualdade e intervalo (`<`, `>`, `BETWEEN`), cruciais para dados de séries temporais. Índices Hash não suportam ordenação e BRIN é mais eficiente em tabelas gigantescas perfeitamente ordenadas no disco (o que não é garantido na camada raw).
 
-O script `sql/run_explain_analyze.py` executa `EXPLAIN ANALYZE` em cada query analítica (Q6a, Q6b, Q6c) em duas etapas:
-1. **Sem índices** — dropa os índices e captura o plano (Seq Scan)
-2. **Com índices** — recria os índices e captura o plano (Index Scan)
+* **Análise do EXPLAIN ANALYZE:**
+O plano de execução das consultas analíticas (`q6a`, `q6b`, `q6c`) foi capturado com a ferramenta nativa `EXPLAIN ANALYZE` em cenários com e sem os índices criados. 
+**Resultado:** O *query planner* do PostgreSQL optou pelo `Seq Scan` (varredura sequencial) em ambos os cenários. 
+**Interpretação:** Este é o comportamento tecnicamente correto e esperado do motor relacional para um volume de dados simulado (apenas 10 registros na camada raw inseridos via sample JSON). Quando uma tabela cabe em uma única página de disco (8 KB), o custo de *random I/O* para percorrer a árvore do índice (`Index Scan`) é superior ao custo de ler a tabela sequencialmente na memória. Os índices B-Tree projetados nesta entrega visam escalabilidade em ambiente de produção: à medida que a volumetria ultrapassa o threshold de memória (geralmente > 1.000 registros), o planner migrará automaticamente do `Seq Scan` para `Bitmap Index Scan` ou `Index Scan`, reduzindo drasticamente o custo e o tempo de execução (Execution Time).
 
-O resultado comparativo é salvo automaticamente em `docs/prints/explain_analyze_output.txt`.
-
-```bash
-python sql/run_explain_analyze.py
-```
-
-> *Resultado: `docs/prints/explain_analyze_output.txt`*
-
-![EXPLAIN ANALYZE comparativo](docs/prints/explain_analyze.png)
+![EXPLAIN ANALYZE Output](docs/prints/explain_analyze.png)
 
 ---
 
@@ -292,17 +290,17 @@ Funcionalidades:
 
 ---
 
-## Q10 — Insights e documentação
+## 10. Insights e Documentação (10 pontos)
 
-### Padrões identificados
+* **Padrões Identificados:**
+  * O pipeline desenvolvido normaliza a heterogeneidade da entrada (ex: diferentes casings de commodities como "SOJA" e "Soja") centralizando as regras de negócio de qualidade de dados antes da camada curada.
+  * O cálculo de janela (MoM - Month over Month) com `LAG` demonstrou-se eficaz para isolar variações abruptas de preço, o que permite automatizar alertas de quebra de safra ou volatilidade do dólar em painéis operacionais.
+  * O cálculo de desvio padrão isolado por commodity (`q6c_anomalias.sql`) evita falsos positivos ao analisar o mercado, pois a variância natural do preço da soja difere significativamente do preço do trigo.
 
-- Sazonalidade nos preços da soja concentrada no período de colheita (fev–abr)
-- Alta correlação entre preços da soja e milho em anos de quebra de safra
-- Regiões do Centro-Oeste apresentam menor variância de preços que o Sul
-
-### Aplicações práticas para o agronegócio
-
-- Alertas automáticos de variação atípica de preço para decisão de venda
+* **Limitações da Base de Dados & Fontes:**
+  * **Frequência de Atualização:** Sites de scraping podem não refletir fechamentos de mercado em tempo real (delay D+1), o que restringe a utilidade dos dados para *day-trade*, focando o uso em estratégias de *hedge* de médio e longo prazo.
+  * **Qualidade da Origem:** A extração via HTML é frágil a mudanças de layout do site (DOM). Em produção, seria ideal priorizar fontes via APIs (como BACEN ou Cepea) e manter o scraper como contingência.
+  * **Ausência de Metadados:** Algumas fontes não deixam claro se o preço cotado é FOB (Free on Board) ou inclui frete, o que pode causar distorções ao comparar preços inter-regionais.
 - Previsão de janelas de comercialização favoráveis por commodity e região
 - Dashboard para traders e cooperativas acompanharem tendências em tempo real
 

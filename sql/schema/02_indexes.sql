@@ -1,54 +1,44 @@
--- Indices para otimizacao das queries analiticas (Q6a, Q6b, Q6c)
--- e consultas frequentes do dashboard Streamlit.
-
+-- ============================================================
+-- Índices otimizados para queries analíticas (B-Tree)
+-- Compatível com: Q6a (LAG), Q6b (Top5), Q6c (Anomalias), Dashboard
+-- ============================================================
 
 -- === price_raw ===
 
--- Q6a (preco medio mensal com LAG): agrupa por produto + DATE_TRUNC(data_referencia)
--- e filtra preco > 0. Indice composto permite index scan no GROUP BY sem sort adicional.
--- Sem indice: Seq Scan em price_raw (~15ms para 10k linhas, cresce linear).
--- Com indice: Index Scan + evita sort no GROUP BY (~2-5ms, escala logaritmico).
+-- Q6a: GROUP BY produto, DATE_TRUNC(data_referencia) — evita sort adicional
 CREATE INDEX IF NOT EXISTS idx_price_raw_produto_data
     ON price_raw (produto, data_referencia);
 
--- Q6b (top 5 produtos): filtra data_referencia >= CURRENT_DATE - '1 year' e preco > 0.
--- Indice em data_referencia permite range scan eficiente no WHERE temporal.
--- Sem indice: Seq Scan varrendo todas as linhas para filtrar por data.
--- Com indice: Index Scan apenas no range do ultimo ano (~60-70% menos I/O).
+-- Q6b: WHERE data_referencia >= CURRENT_DATE - '1 year' — range scan temporal
 CREATE INDEX IF NOT EXISTS idx_price_raw_data_referencia
     ON price_raw (data_referencia)
     WHERE data_referencia IS NOT NULL;
 
--- Q6c (anomalias): JOIN em produto + filtro em preco. Cobre tambem a CTE
--- que calcula AVG/STDDEV agrupando por produto.
--- Sem indice: Hash Join + Seq Scan na tabela inteira para a CTE e o JOIN.
--- Com indice: Index Scan no JOIN por produto, reduz custo de lookup.
+-- Q6c: JOIN em produto + filtro em preco (CTE de AVG/STDDEV)
 CREATE INDEX IF NOT EXISTS idx_price_raw_produto_preco
     ON price_raw (produto, preco);
 
--- Dashboard Streamlit: query principal faz SELECT * ORDER BY data_referencia.
--- Filtros por regiao geram WHERE regiao = '...'. Indice em regiao evita Seq Scan.
+-- Dashboard: filtro WHERE regiao = '...'
 CREATE INDEX IF NOT EXISTS idx_price_raw_regiao
     ON price_raw (regiao);
 
 
 -- === price_processed ===
 
--- Consultas analiticas juntam com commodity e regiao por FK.
--- Indices nas FKs evitam Seq Scan nos JOINs (PostgreSQL nao cria automaticamente).
+-- FK indexes (PostgreSQL não cria automaticamente em FKs)
 CREATE INDEX IF NOT EXISTS idx_price_processed_commodity_id
     ON price_processed (commodity_id);
 
 CREATE INDEX IF NOT EXISTS idx_price_processed_region_id
     ON price_processed (region_id);
 
--- Filtros temporais no dashboard e em queries ad-hoc.
+-- Filtros temporais no dashboard e queries ad-hoc
 CREATE INDEX IF NOT EXISTS idx_price_processed_data
     ON price_processed (data_referencia);
 
 
 -- === price_curated ===
 
--- Tabela pequena (agregada), mas consultada com filtro por produto no dashboard.
+-- Filtro por produto no dashboard
 CREATE INDEX IF NOT EXISTS idx_price_curated_produto
     ON price_curated (produto);

@@ -25,4 +25,7 @@ Thumbs.db
 
 # Dados pesados (manter apenas exemplos leves no repo)
 # data/raw/*.csv    ← descomente se os brutos ficarem >50 MB
-# data/processed/*.parquet
+# data/processed/*.parquetdata/processed/
+data/curated/
+*.parquet
+data/processed/*.csv

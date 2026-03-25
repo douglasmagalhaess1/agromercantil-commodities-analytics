@@ -1,0 +1,123 @@
+EXPLAIN ANALYZE — Planos de execução das queries analíticas
+Gerado em: 2026-03-25 13:41:17
+================================================================================
+
+Registros em price_raw: 10
+
+
+================================================================================
+QUERY: q6a_preco_medio_lag
+Arquivo: sql/queries/q6a_preco_medio_lag.sql
+================================================================================
+
+--- SEM índices (após DROP) ---
+
+WindowAgg  (cost=1.16..1.38 rows=3 width=330) (actual time=0.107..0.122 rows=5 loops=1)
+  ->  GroupAggregate  (cost=1.16..1.26 rows=3 width=266) (actual time=0.089..0.097 rows=5 loops=1)
+        Group Key: price_raw.produto, (date_trunc('month'::text, (price_raw.data_referencia)::timestamp with time zone))
+        ->  Sort  (cost=1.16..1.17 rows=3 width=242) (actual time=0.077..0.079 rows=10 loops=1)
+              Sort Key: price_raw.produto, (date_trunc('month'::text, (price_raw.data_referencia)::timestamp with time zone))
+              Sort Method: quicksort  Memory: 25kB
+              ->  Seq Scan on price_raw  (cost=0.00..1.14 rows=3 width=242) (actual time=0.015..0.020 rows=10 loops=1)
+                    Filter: ((data_referencia IS NOT NULL) AND (preco > '0'::numeric))
+Planning Time: 0.524 ms
+Execution Time: 0.243 ms
+
+--- COM índices (após CREATE) ---
+
+WindowAgg  (cost=1.16..1.38 rows=3 width=330) (actual time=0.135..0.176 rows=5 loops=1)
+  ->  GroupAggregate  (cost=1.16..1.26 rows=3 width=266) (actual time=0.105..0.127 rows=5 loops=1)
+        Group Key: price_raw.produto, (date_trunc('month'::text, (price_raw.data_referencia)::timestamp with time zone))
+        ->  Sort  (cost=1.16..1.17 rows=3 width=242) (actual time=0.079..0.082 rows=10 loops=1)
+              Sort Key: price_raw.produto, (date_trunc('month'::text, (price_raw.data_referencia)::timestamp with time zone))
+              Sort Method: quicksort  Memory: 25kB
+              ->  Seq Scan on price_raw  (cost=0.00..1.14 rows=3 width=242) (actual time=0.026..0.040 rows=10 loops=1)
+                    Filter: ((data_referencia IS NOT NULL) AND (preco > '0'::numeric))
+Planning Time: 2.195 ms
+Execution Time: 0.348 ms
+
+================================================================================
+QUERY: q6b_top5_produtos
+Arquivo: sql/queries/q6b_top5_produtos.sql
+================================================================================
+
+--- SEM índices (após DROP) ---
+
+Limit  (cost=1.26..1.26 rows=1 width=330) (actual time=0.166..0.168 rows=0 loops=1)
+  ->  Sort  (cost=1.26..1.26 rows=1 width=330) (actual time=0.163..0.165 rows=0 loops=1)
+        Sort Key: (count(*)) DESC
+        Sort Method: quicksort  Memory: 25kB
+        ->  GroupAggregate  (cost=1.21..1.25 rows=1 width=330) (actual time=0.075..0.076 rows=0 loops=1)
+              Group Key: produto
+              ->  Sort  (cost=1.21..1.21 rows=1 width=552) (actual time=0.073..0.074 rows=0 loops=1)
+                    Sort Key: produto
+                    Sort Method: quicksort  Memory: 25kB
+                    ->  Seq Scan on price_raw  (cost=0.00..1.20 rows=1 width=552) (actual time=0.027..0.028 rows=0 loops=1)
+                          Filter: ((preco > '0'::numeric) AND (data_referencia >= (CURRENT_DATE - '1 year'::interval)))
+                          Rows Removed by Filter: 10
+Planning Time: 0.836 ms
+Execution Time: 0.315 ms
+
+--- COM índices (após CREATE) ---
+
+Limit  (cost=1.26..1.26 rows=1 width=330) (actual time=0.075..0.077 rows=0 loops=1)
+  ->  Sort  (cost=1.26..1.26 rows=1 width=330) (actual time=0.073..0.075 rows=0 loops=1)
+        Sort Key: (count(*)) DESC
+        Sort Method: quicksort  Memory: 25kB
+        ->  GroupAggregate  (cost=1.21..1.25 rows=1 width=330) (actual time=0.045..0.047 rows=0 loops=1)
+              Group Key: produto
+              ->  Sort  (cost=1.21..1.21 rows=1 width=552) (actual time=0.044..0.045 rows=0 loops=1)
+                    Sort Key: produto
+                    Sort Method: quicksort  Memory: 25kB
+                    ->  Seq Scan on price_raw  (cost=0.00..1.20 rows=1 width=552) (actual time=0.027..0.027 rows=0 loops=1)
+                          Filter: ((preco > '0'::numeric) AND (data_referencia >= (CURRENT_DATE - '1 year'::interval)))
+                          Rows Removed by Filter: 10
+Planning Time: 1.617 ms
+Execution Time: 0.207 ms
+
+================================================================================
+QUERY: q6c_anomalias
+Arquivo: sql/queries/q6c_anomalias.sql
+================================================================================
+
+--- SEM índices (após DROP) ---
+
+Sort  (cost=2.48..2.48 rows=2 width=664) (actual time=0.251..0.255 rows=0 loops=1)
+  Sort Key: r.produto, r.data_referencia
+  Sort Method: quicksort  Memory: 25kB
+  ->  Hash Join  (cost=1.26..2.47 rows=2 width=664) (actual time=0.188..0.191 rows=0 loops=1)
+        Hash Cond: ((r.produto)::text = (e.produto)::text)
+        Join Filter: ((r.preco < '0'::numeric) OR (r.preco IS NULL) OR (r.preco > (e.media + ('3'::numeric * e.desvio))) OR (r.preco < GREATEST((e.media - ('3'::numeric * e.desvio)), '0'::numeric)))
+        Rows Removed by Join Filter: 10
+        ->  Seq Scan on price_raw r  (cost=0.00..1.10 rows=10 width=568) (actual time=0.011..0.014 rows=10 loops=1)
+        ->  Hash  (cost=1.22..1.22 rows=3 width=282) (actual time=0.089..0.090 rows=1 loops=1)
+              Buckets: 1024  Batches: 1  Memory Usage: 9kB
+              ->  Subquery Scan on e  (cost=1.15..1.22 rows=3 width=282) (actual time=0.066..0.069 rows=1 loops=1)
+                    ->  HashAggregate  (cost=1.15..1.19 rows=3 width=282) (actual time=0.064..0.066 rows=1 loops=1)
+                          Group Key: price_raw.produto
+                          Batches: 1  Memory Usage: 24kB
+                          ->  Seq Scan on price_raw  (cost=0.00..1.12 rows=3 width=234) (actual time=0.010..0.017 rows=10 loops=1)
+                                Filter: (preco > '0'::numeric)
+Planning Time: 2.863 ms
+Execution Time: 0.647 ms
+
+--- COM índices (após CREATE) ---
+
+Sort  (cost=2.48..2.48 rows=2 width=664) (actual time=0.137..0.139 rows=0 loops=1)
+  Sort Key: r.produto, r.data_referencia
+  Sort Method: quicksort  Memory: 25kB
+  ->  Hash Join  (cost=1.26..2.47 rows=2 width=664) (actual time=0.116..0.118 rows=0 loops=1)
+        Hash Cond: ((r.produto)::text = (e.produto)::text)
+        Join Filter: ((r.preco < '0'::numeric) OR (r.preco IS NULL) OR (r.preco > (e.media + ('3'::numeric * e.desvio))) OR (r.preco < GREATEST((e.media - ('3'::numeric * e.desvio)), '0'::numeric)))
+        Rows Removed by Join Filter: 10
+        ->  Seq Scan on price_raw r  (cost=0.00..1.10 rows=10 width=568) (actual time=0.007..0.009 rows=10 loops=1)
+        ->  Hash  (cost=1.22..1.22 rows=3 width=282) (actual time=0.061..0.062 rows=1 loops=1)
+              Buckets: 1024  Batches: 1  Memory Usage: 9kB
+              ->  Subquery Scan on e  (cost=1.15..1.22 rows=3 width=282) (actual time=0.042..0.044 rows=1 loops=1)
+                    ->  HashAggregate  (cost=1.15..1.19 rows=3 width=282) (actual time=0.041..0.042 rows=1 loops=1)
+                          Group Key: price_raw.produto
+                          Batches: 1  Memory Usage: 24kB
+                          ->  Seq Scan on price_raw  (cost=0.00..1.12 rows=3 width=234) (actual time=0.006..0.011 rows=10 loops=1)
+                                Filter: (preco > '0'::numeric)
+Planning Time: 1.636 ms
+Execution Time: 0.289 ms

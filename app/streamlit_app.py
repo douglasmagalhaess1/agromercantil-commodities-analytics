@@ -418,7 +418,7 @@ def barra_de_filtros(df):
     st.markdown("### 🔍 Pesquisa e Filtros")
     
     # Layout responsivo
-    col_busca, col_filtros, col_data = st.columns([2, 1, 1], vertical_alignment="bottom")
+    col_busca, col_filtros, col_data = st.columns([2, 1, 1])
 
     with col_busca:
         termo_busca = st.text_input("Buscar Produto ou Região", placeholder="🔎 Pesquise por soja, milho, sul, etc...", label_visibility="collapsed")

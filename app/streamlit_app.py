@@ -397,7 +397,15 @@ def estilizar_tabela_zebrada(df):
     if df.empty:
         return df
 
-    df_exibicao = df.reset_index(drop=True)
+    df_exibicao = df.reset_index(drop=True).copy()
+
+    # Formata colunas monetárias como R$ 0.000,00
+    colunas_monetarias = [c for c in df_exibicao.columns
+                          if c in ("preco", "preco_medio", "preco_min", "preco_max")]
+    for col in colunas_monetarias:
+        df_exibicao[col] = pd.to_numeric(df_exibicao[col], errors="coerce").map(
+            lambda v: f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if pd.notna(v) else "—"
+        )
 
     def _zebra(linha):
         cor = "#ffffff" if linha.name % 2 == 0 else "#f3f8ed"
@@ -607,18 +615,28 @@ def grafico_distribuicao(df, mostrar_rotulos=False):
     if coluna_preco not in df.columns:
         return
 
+    tem_produto = "produto" in df.columns and df["produto"].nunique() > 1
+    n_registros = len(df)
+    nbins = max(5, min(30, n_registros // 3))
+
     fig = px.histogram(
-        df, x=coluna_preco, color="produto" if "produto" in df.columns else None,
-        nbins=30, color_discrete_sequence=PALETA_GRAFICOS,
-        labels={coluna_preco: "Preço (R$)"},
+        df, x=coluna_preco, color="produto" if tem_produto else None,
+        nbins=nbins, color_discrete_sequence=PALETA_GRAFICOS,
+        labels={coluna_preco: "Preço (R$)", "count": "Frequência"},
+        marginal="box",
     )
     fig.update_traces(
         opacity=0.8,
+        selector=dict(type="histogram"),
         texttemplate="%{y}" if mostrar_rotulos else None,
         textposition="outside",
-        hovertemplate="Faixa de preço: %{x}<br>Quantidade: %{y}<extra></extra>",
+        hovertemplate="Faixa de preço: R$ %{x:.2f}<br>Frequência: %{y}<extra></extra>",
     )
-    fig.update_layout(uniformtext_minsize=8, uniformtext_mode="hide")
+    fig.update_layout(
+        uniformtext_minsize=8, uniformtext_mode="hide",
+        yaxis_title="Frequência",
+        bargap=0.05,
+    )
     aplicar_layout(fig, "Distribuição de preços")
 
     st.plotly_chart(fig, use_container_width=True, theme=None)

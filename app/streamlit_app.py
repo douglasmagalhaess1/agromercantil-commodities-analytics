@@ -622,22 +622,22 @@ def grafico_distribuicao(df, mostrar_rotulos=False):
     fig = px.histogram(
         df, x=coluna_preco, color="produto" if tem_produto else None,
         nbins=nbins, color_discrete_sequence=PALETA_GRAFICOS,
-        labels={coluna_preco: "Preço (R$)", "count": "Frequência"},
-        marginal="box",
+        labels={coluna_preco: "Faixa de preço (R$)", "count": "Recorrência"},
     )
     fig.update_traces(
-        opacity=0.8,
-        selector=dict(type="histogram"),
-        texttemplate="%{y}" if mostrar_rotulos else None,
+        opacity=0.85,
+        texttemplate="%{y}",
         textposition="outside",
-        hovertemplate="Faixa de preço: R$ %{x:.2f}<br>Frequência: %{y}<extra></extra>",
+        textfont=dict(size=11, color=COR_TEXTO),
+        hovertemplate="Faixa de preço: R$ %{x:.2f}<br>Recorrência: %{y}<extra></extra>",
     )
     fig.update_layout(
         uniformtext_minsize=8, uniformtext_mode="hide",
-        yaxis_title="Frequência",
-        bargap=0.05,
+        yaxis_title="Recorrência",
+        xaxis_title="Faixa de preço (R$)",
+        bargap=0.08,
     )
-    aplicar_layout(fig, "Distribuição de preços")
+    aplicar_layout(fig, "Recorrência de preços por faixa")
 
     st.plotly_chart(fig, use_container_width=True, theme=None)
 

@@ -642,6 +642,30 @@ def grafico_distribuicao(df, mostrar_rotulos=False):
     st.plotly_chart(fig, use_container_width=True, theme=None)
 
 
+def grafico_boxplot_regiao(df):
+    coluna_preco = "preco" if "preco" in df.columns else "preco_medio"
+    if coluna_preco not in df.columns or "regiao" not in df.columns:
+        st.info("Dados insuficientes para boxplot.")
+        return
+
+    # Limita às 15 regiões com mais registros para legibilidade
+    top_regioes = df["regiao"].value_counts().head(15).index
+    df_box = df[df["regiao"].isin(top_regioes)].copy()
+
+    fig = px.box(
+        df_box, x="regiao", y=coluna_preco, color="produto" if "produto" in df.columns else None,
+        color_discrete_sequence=PALETA_GRAFICOS,
+        labels={"regiao": "Região", coluna_preco: "Preço (R$)", "produto": "Produto"},
+    )
+    fig.update_traces(
+        hovertemplate="Região: %{x}<br>Preço: R$ %{y:.2f}<extra></extra>",
+    )
+    fig.update_layout(xaxis_tickangle=-35)
+    aplicar_layout(fig, "Boxplot de preços por região")
+
+    st.plotly_chart(fig, use_container_width=True, theme=None)
+
+
 # ── Main ────────────────────────────────────────────────────────────────────
 
 def main():
@@ -661,9 +685,9 @@ def main():
     st.markdown("<br>", unsafe_allow_html=True)
     df_filtrado, mostrar_rotulos = barra_de_filtros(df)
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📈 Evolução", "📊 Média Móvel", "🗺️ Por Região",
-        "📉 Distribuição", "📋 Dados Brutos",
+        "📦 Boxplot", "📉 Distribuição", "📋 Dados Brutos",
     ])
 
     with tab1:
@@ -673,8 +697,10 @@ def main():
     with tab3:
         grafico_preco_por_regiao(df_filtrado, mostrar_rotulos)
     with tab4:
-        grafico_distribuicao(df_filtrado, mostrar_rotulos)
+        grafico_boxplot_regiao(df_filtrado)
     with tab5:
+        grafico_distribuicao(df_filtrado, mostrar_rotulos)
+    with tab6:
         st.dataframe(estilizar_tabela_zebrada(df_filtrado), use_container_width=True, height=500)
 
 

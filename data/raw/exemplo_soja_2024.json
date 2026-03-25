@@ -1,0 +1,82 @@
+[
+  {
+    "produto": "soja",
+    "regiao": "Sorriso - MT",
+    "data_referencia": "15/01/2024",
+    "preco": 117.50,
+    "unidade": "saca",
+    "data_coleta": "2024-01-16T08:30:00"
+  },
+  {
+    "produto": "soja",
+    "regiao": "Rio Verde - GO",
+    "data_referencia": "15/01/2024",
+    "preco": 122.80,
+    "unidade": "saca",
+    "data_coleta": "2024-01-16T08:30:00"
+  },
+  {
+    "produto": "soja",
+    "regiao": "Cascavel - PR",
+    "data_referencia": "15/01/2024",
+    "preco": 128.40,
+    "unidade": "saca",
+    "data_coleta": "2024-01-16T08:30:00"
+  },
+  {
+    "produto": "soja",
+    "regiao": "Dourados - MS",
+    "data_referencia": "15/02/2024",
+    "preco": 119.20,
+    "unidade": "saca",
+    "data_coleta": "2024-02-16T09:15:00"
+  },
+  {
+    "produto": "soja",
+    "regiao": "Sorriso - MT",
+    "data_referencia": "15/02/2024",
+    "preco": 115.00,
+    "unidade": "saca",
+    "data_coleta": "2024-02-16T09:15:00"
+  },
+  {
+    "produto": "soja",
+    "regiao": "Uberlandia - MG",
+    "data_referencia": "15/03/2024",
+    "preco": 126.90,
+    "unidade": "saca",
+    "data_coleta": "2024-03-16T10:00:00"
+  },
+  {
+    "produto": "soja",
+    "regiao": "Barreiras - BA",
+    "data_referencia": "15/03/2024",
+    "preco": 121.30,
+    "unidade": "saca",
+    "data_coleta": "2024-03-16T10:00:00"
+  },
+  {
+    "produto": "soja",
+    "regiao": "Passo Fundo - RS",
+    "data_referencia": "15/04/2024",
+    "preco": 131.75,
+    "unidade": "saca",
+    "data_coleta": "2024-04-16T08:45:00"
+  },
+  {
+    "produto": "soja",
+    "regiao": "Rio Verde - GO",
+    "data_referencia": "15/04/2024",
+    "preco": 124.60,
+    "unidade": "saca",
+    "data_coleta": "2024-04-16T08:45:00"
+  },
+  {
+    "produto": "soja",
+    "regiao": "Sorriso - MT",
+    "data_referencia": "15/05/2024",
+    "preco": 112.35,
+    "unidade": "saca",
+    "data_coleta": "2024-05-16T09:30:00"
+  }
+]

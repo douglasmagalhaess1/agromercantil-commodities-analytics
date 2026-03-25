@@ -1,8 +1,28 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
-.env
-.pytest_cache/
+*.pyo
 *.egg-info/
 dist/
 build/
+
+# Segredos
+.env
+
+# Cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dados pesados (manter apenas exemplos leves no repo)
+# data/raw/*.csv    ← descomente se os brutos ficarem >50 MB
+# data/processed/*.parquet

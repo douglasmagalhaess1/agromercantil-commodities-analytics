@@ -56,12 +56,23 @@ cp .env.example .env
 # Edite .env com suas credenciais do PostgreSQL
 ```
 
-### 3. Banco de dados
+### 3. Banco de dados (PostgreSQL via Docker)
 
 ```bash
-psql -U seu_usuario -d seu_banco -f sql/schema/01_create_tables.sql
-psql -U seu_usuario -d seu_banco -f sql/schema/02_indexes.sql
+# Subir o PostgreSQL localmente (se ainda não tiver):
+docker run -d --name agro-pg \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=agromercantil \
+  -p 5432:5432 \
+  postgres:16-alpine
+
+# Criar tabelas e índices:
+psql -h localhost -U postgres -d agromercantil -f sql/schema/01_create_tables.sql
+psql -h localhost -U postgres -d agromercantil -f sql/schema/02_indexes.sql
 ```
+
+> Se já possui PostgreSQL instalado, ajuste host/credenciais no `.env` e ignore o Docker.
 
 ### 4. Scraper
 
@@ -188,7 +199,9 @@ Cada camada e imutavel em relacao a anterior. Dados brutos sao preservados para 
 -- Ver sql/queries/q6a_preco_medio_lag.sql
 ```
 
-> *Print da query: `docs/prints/query_lag.png`*
+> *Print da query: ver `docs/prints/query_lag.png`*
+
+![Preco medio mensal com LAG](docs/prints/query_lag.png)
 
 ### 6b — Top 5 produtos mais negociados
 
@@ -221,6 +234,8 @@ python sql/run_explain_analyze.py
 ```
 
 > *Resultado: `docs/prints/explain_analyze_output.txt`*
+
+![EXPLAIN ANALYZE comparativo](docs/prints/explain_analyze.png)
 
 ---
 
@@ -266,7 +281,7 @@ Scripts em `analysis/eda.py`. Gráficos gerados:
 
 ## Q9 — Dashboard Streamlit
 
-> *Print do dashboard: `docs/prints/streamlit_dashboard.png`*
+![Dashboard Streamlit — Evolução de preços](docs/prints/streamlit_dashboard.png)
 
 Funcionalidades:
 - Filtros por commodity, região e período

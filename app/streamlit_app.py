@@ -353,8 +353,8 @@ def carregar_dados():
 def render_header(fonte):
     st.markdown(f"""
     <div class="dashboard-header">
-        <h1>🌾 Agromercantil — Commodities</h1>
-        <p>Painel de precos de commodities agricolas brasileiras · Dados CONAB</p>
+        <h1>🌾 Painel Agromercantil — Commodities</h1>
+        <p>Painel de Monitoramento de Commodities Brasileiras (Dados: CONAB)</p>
         <span class="fonte-badge">⚡ Fonte: {fonte}</span>
     </div>
     """, unsafe_allow_html=True)
